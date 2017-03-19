@@ -576,3 +576,6 @@ def register(email, out):
 
 if __name__ == "__main__":
     cli()
+
+def lambda_handler(event, context):
+    update_certificates()
