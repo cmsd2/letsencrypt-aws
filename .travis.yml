@@ -8,8 +8,7 @@ addons:
   artifacts:
     s3_region: eu-west-1
     paths:
-      - letsencrypt-aws-2.7.zip
-      - letsencrypt-aws-3.5.zip
+      - letsencrypt-aws-$TRAVIS_PYTHON_VERSION.zip
     bucket: cmsd2-artifacts
     target_paths: letsencrypt-aws/$TRAVIS_BUILD_NUMBER
     debug: true
