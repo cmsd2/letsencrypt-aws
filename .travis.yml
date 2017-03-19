@@ -16,7 +16,7 @@ cache:
   - "$HOME/.cache/pip"
 install:
 - virtualenv venv
-- source venv/Scripts/activate
+- source venv/bin/activate
 - pip install -U pip
 - pip install flake8
 - pip install -r requirements.txt
