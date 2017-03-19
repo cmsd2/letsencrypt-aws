@@ -23,8 +23,8 @@ install:
 script:
 - flake8 letsencrypt-aws.py
 - zip -r $TRAVIS_BUILD_DIR/letsencrypt-aws-$TRAVIS_PYTHON_VERSION.zip letsencrypt-aws.py requirements.txt
-- cd $HOME/virtualenv/${TRAVIS_PYTHON_VERSION}*/lib/python${TRAVIS_PYTHON_VERSION}/site-packages
-- zip -r $TRAVIS_BUILD_DIR/letsencrypt-aws-$TRAVIS_PYTHON_VERSION.zip *
+- cd $HOME/virtualenv/python${TRAVIS_PYTHON_VERSION}*/lib/python${TRAVIS_PYTHON_VERSION}/site-packages && zip -r $TRAVIS_BUILD_DIR/letsencrypt-aws-$TRAVIS_PYTHON_VERSION.zip *
+- cd $HOME/virtualenv/python${TRAVIS_PYTHON_VERSION}*/lib64/python${TRAVIS_PYTHON_VERSION}/site-packages && zip -r $TRAVIS_BUILD_DIR/letsencrypt-aws-$TRAVIS_PYTHON_VERSION.zip *
 env:
   global:
   - ARTIFACTS_KEY: AKIAJLYCNA2OXC6GVDEA
