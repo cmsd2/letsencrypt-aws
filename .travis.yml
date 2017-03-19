@@ -1,17 +1,30 @@
 language: python
 python:
-    - 2.7
-    - 3.5
-
+- 2.7
+addons:
+  apt:
+    packages: 
+  artifacts:
+    s3_region: eu-west-1
+    paths:
+    - letsencrypt-aws.zip
+    bucket: cmsd2-artifacts
+    target_paths: letsencrypt-aws/$TRAVIS_BUILD_NUMBER
+    debug: true
 cache:
-    directories:
-        - $HOME/.cache/pip
-
-
+  directories:
+  - "$HOME/.cache/pip"
 install:
-    - pip install -U pip
-    - pip install flake8
-    - pip install -r requirements.txt
-
+- virtualenv venv
+- source venv/Scripts/activate
+- pip install -U pip
+- pip install flake8
+- pip install -r requirements.txt
 script:
-    - flake8 letsencrypt-aws.py
+- flake8 letsencrypt-aws.py
+- zip -r letsencrypt-aws.zip venv letsencrypt-aws.py requirements.txt
+env:
+  global:
+  - ARTIFACTS_KEY: AKIAJLYCNA2OXC6GVDEA
+  - ARTIFACTS_BUCKET: cmsd2-artifacts
+  - secure: Hqvide1jiw9Yvns/eF+xHrlisa+oqEWJ9w6WYfMZPpMF4CiDTyP9DXDHlOMX8ltlVB5uargrxzA2zIREsUP6C8aa+W+akw/y5SQYpUg8GTbc4BLzbQVt99gkrOFiZrTNIv/wiplcoaCLFMLexZ3BuzrIGQmZ6KPAj3NsMc6QboZCiAFQcXDXDRxeP3bylwLcgZnfaxV5HV4+9mgImFh9soYxsixd4MaBmDWEVhW9fRs1F3cnRzOvx37/8YOMUgouhptKGKvgSaXa+xqY1FWAmGyVlP7hFcKKImqbYeMNnXzkLATmMag597HCEIzGZZuw/pcFAPB32MM4QWOScTc8p2UzwJxCOdQBi8syjAbzeZsjfm6ilLnHkmmJycCEp6zJ/tuGRbQW6vm7CxTyP/Di244sQLuMcgw+5v1dFGFx7t/wzjk1UPTb/iNOh6Z+r/qHNCeReQSlexoHZPKEgHlh/Hnrh+cHDI0jiAa00oe83T8LFiIZ90JiEC4keIGrjEgDtOIVpGCV4XWLrMb/8mvdXinljzquRdm0YYHak8y+OsQbBG41J1K88/Brfp+H3FGg9pBe8M098QjNhiThwBj45fF+RMLP6mX+FIqYEMgtpUbyeSmleoseyVh5LsjgCOIRyl5fpaDmQpmouOQTkzuuvfPJL2PyyGdKTvOViA0vgG4=
