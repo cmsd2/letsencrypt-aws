@@ -66,7 +66,9 @@ environment variable. This should be a JSON object with the following schema:
         }
     ],
     "acme_account_key": "location of the account private key (string)",
-    "acme_directory_url": "optional, defaults to Let's Encrypt production (string)"
+    "acme_directory_url": "optional, defaults to Let's Encrypt production (string)",
+    "sse": "aws:kms",
+    "sse_key_id": "<kms key id>"
 }
 ```
 

@@ -434,7 +434,7 @@ def update_certs(logger, acme_client, force_issue, certificate_requests):
         )
 
 
-def setup_acme_client(s3_client, acme_directory_url, acme_account_key):
+def setup_acme_client(s3_client, acme_directory_url, acme_account_key, sse, sse_key_id):
     uri = rfc3986.urlparse(acme_account_key)
     if uri.scheme == "file":
         if uri.host is None:
@@ -447,7 +447,7 @@ def setup_acme_client(s3_client, acme_directory_url, acme_account_key):
             key = f.read()
     elif uri.scheme == "s3":
         # uri.path includes a leading "/"
-        response = s3_client.get_object(Bucket=uri.host, Key=uri.path[1:])
+        response = s3_client.get_object(Bucket=uri.host, Key=uri.path[1:], ExtraArgs={"ServerSideEncryption": sse, "SSEKMSKeyId": sse_key_id})
         key = response["Body"].read()
     else:
         raise ValueError(
@@ -490,7 +490,7 @@ def update_certificates(persistent=False, force_issue=False):
         raise ValueError("Can't specify both --persistent and --force-issue")
 
     session = boto3.Session()
-    s3_client = session.client("s3")
+    s3_client = session.client("s3", config=Config(signature_version='s3v4'))
     elb_client = session.client("elb")
     route53_client = session.client("route53")
     iam_client = session.client("iam")
@@ -502,7 +502,7 @@ def update_certificates(persistent=False, force_issue=False):
     )
     acme_account_key = config["acme_account_key"]
     acme_client = setup_acme_client(
-        s3_client, acme_directory_url, acme_account_key
+        s3_client, acme_directory_url, acme_account_key, config["sse"], config["sse_key_id"]
     )
 
     certificate_requests = []
