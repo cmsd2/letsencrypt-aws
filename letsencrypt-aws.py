@@ -448,7 +448,7 @@ def setup_acme_client(s3_client, acme_directory_url, acme_account_key, sse, sse_
             key = f.read()
     elif uri.scheme == "s3":
         # uri.path includes a leading "/"
-        response = s3_client.get_object(Bucket=uri.host, Key=uri.path[1:], SSECustomerKey=sse_key_id)
+        response = s3_client.get_object(Bucket=uri.host, Key=uri.path[1:])
         key = response["Body"].read()
     else:
         raise ValueError(
