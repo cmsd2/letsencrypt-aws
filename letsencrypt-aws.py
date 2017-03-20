@@ -600,3 +600,7 @@ if __name__ == "__main__":
 
 def lambda_handler(event, context):
     update_certificates()
+
+    return {
+        'message': 'success'
+    }
