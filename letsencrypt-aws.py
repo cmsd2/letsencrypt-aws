@@ -72,27 +72,30 @@ class CertificateRequest(object):
 
 
 class ELBCertificate(object):
-    def __init__(self, elb_client, iam_client, elb_name, elb_port):
+    def __init__(self, elb_client, iam_client, elb_name, elb_port, instance_port):
         self.elb_client = elb_client
         self.iam_client = iam_client
         self.elb_name = elb_name
         self.elb_port = elb_port
+        self.instance_port = instance_port
 
     def get_current_certificate(self):
         response = self.elb_client.describe_load_balancers(
             LoadBalancerNames=[self.elb_name]
         )
         [description] = response["LoadBalancerDescriptions"]
-        [elb_listener] = [
+        elb_listeners = [
             listener["Listener"]
             for listener in description["ListenerDescriptions"]
             if listener["Listener"]["LoadBalancerPort"] == self.elb_port
         ]
+        if len(elb_listeners) == 0:
+            return None
+        
+        [elb_listener] = elb_listeners
 
         if "SSLCertificateId" not in elb_listener:
-            raise ValueError(
-                "A certificate must already be configured for the ELB"
-            )
+            return None
 
         return _get_iam_certificate(
             self.iam_client, elb_listener["SSLCertificateId"]
@@ -115,21 +118,35 @@ class ELBCertificate(object):
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
                 encryption_algorithm=serialization.NoEncryption(),
-            ),
-            CertificateBody=pem_certificate.decode(),
-            CertificateChain=pem_certificate_chain.decode(),
+            ).decode('utf-8'),
+            CertificateBody=pem_certificate.decode('utf-8'),
+            CertificateChain=pem_certificate_chain.decode('utf-8'),
         )
         new_cert_arn = response["ServerCertificateMetadata"]["Arn"]
 
         # Sleep before trying to set the certificate, it appears to sometimes
         # fail without this.
         time.sleep(15)
-        logger.emit("updating-elb.set-elb-certificate", elb_name=self.elb_name)
-        self.elb_client.set_load_balancer_listener_ssl_certificate(
-            LoadBalancerName=self.elb_name,
-            SSLCertificateId=new_cert_arn,
-            LoadBalancerPort=self.elb_port,
-        )
+        
+        if self.get_current_certificate() is None:
+            logger.emit("updating-elb.create-elb-listener", elb_name=self.elb_name)
+            self.elb_client.create_load_balancer_listeners(
+                LoadBalancerName=self.elb_name,
+                Listeners=[{
+                    'Protocol': 'https',
+                    'LoadBalancerPort': self.elb_port,
+                    'InstanceProtocol': 'http',
+                    'InstancePort': self.instance_port,
+                    'SSLCertificateId': new_cert_arn
+                }]
+            )
+        else:
+            logger.emit("updating-elb.set-elb-certificate", elb_name=self.elb_name)
+            self.elb_client.set_load_balancer_listener_ssl_certificate(
+                LoadBalancerName=self.elb_name,
+                SSLCertificateId=new_cert_arn,
+                LoadBalancerPort=self.elb_port,
+            )
 
 
 class Route53ChallengeCompleter(object):
@@ -435,7 +452,7 @@ def update_certs(logger, acme_client, force_issue, certificate_requests):
         )
 
 
-def setup_acme_client(s3_client, acme_directory_url, acme_account_key, sse, sse_key_id):
+def setup_acme_client(s3_client, acme_directory_url, acme_account_key):
     uri = rfc3986.urlparse(acme_account_key)
     if uri.scheme == "file":
         if uri.host is None:
@@ -454,9 +471,9 @@ def setup_acme_client(s3_client, acme_directory_url, acme_account_key, sse, sse_
         raise ValueError(
             "Invalid acme account key: {!r}".format(acme_account_key)
         )
-
+    
     key = serialization.load_pem_private_key(
-        key.encode("utf-8"), password=None, backend=default_backend()
+        key, password=None, backend=default_backend()
     )
     return acme_client_for_private_key(acme_directory_url, key)
 
@@ -503,7 +520,7 @@ def update_certificates(persistent=False, force_issue=False):
     )
     acme_account_key = config["acme_account_key"]
     acme_client = setup_acme_client(
-        s3_client, acme_directory_url, acme_account_key, config["sse"], config["sse_key_id"]
+        s3_client, acme_directory_url, acme_account_key
     )
 
     certificate_requests = []
@@ -511,7 +528,9 @@ def update_certificates(persistent=False, force_issue=False):
         if "elb" in domain:
             cert_location = ELBCertificate(
                 elb_client, iam_client,
-                domain["elb"]["name"], int(domain["elb"].get("port", 443))
+                domain["elb"]["name"], 
+                int(domain["elb"].get("port", 443)),
+                int(domain["elb"].get("instance_port", 80))
             )
         else:
             raise ValueError(
