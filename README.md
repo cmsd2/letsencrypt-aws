@@ -59,16 +59,15 @@ environment variable. This should be a JSON object with the following schema:
         {
             "elb": {
                 "name": "ELB name (string)",
-                "port": "optional, defaults to 443 (integer)"
+                "port": "optional, defaults to 443 (integer)",
+                "instance_port": "optional, defaults to 80 (integer)"
             },
             "hosts": ["list of hosts you want on the certificate (strings)"],
             "key_type": "rsa or ecdsa, optional, defaults to rsa (string)"
         }
     ],
     "acme_account_key": "location of the account private key (string)",
-    "acme_directory_url": "optional, defaults to Let's Encrypt production (string)",
-    "sse": "aws:kms",
-    "sse_key_id": "<kms key id>"
+    "acme_directory_url": "optional, defaults to Let's Encrypt production (string)"
 }
 ```
 
