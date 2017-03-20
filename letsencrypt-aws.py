@@ -72,7 +72,8 @@ class CertificateRequest(object):
 
 
 class ELBCertificate(object):
-    def __init__(self, elb_client, iam_client, elb_name, elb_port, instance_port):
+    def __init__(self, elb_client, iam_client, elb_name, elb_port, 
+            instance_port):
         self.elb_client = elb_client
         self.iam_client = iam_client
         self.elb_name = elb_name
@@ -91,7 +92,7 @@ class ELBCertificate(object):
         ]
         if len(elb_listeners) == 0:
             return None
-        
+
         [elb_listener] = elb_listeners
 
         if "SSLCertificateId" not in elb_listener:
@@ -127,9 +128,10 @@ class ELBCertificate(object):
         # Sleep before trying to set the certificate, it appears to sometimes
         # fail without this.
         time.sleep(15)
-        
+
         if self.get_current_certificate() is None:
-            logger.emit("updating-elb.create-elb-listener", elb_name=self.elb_name)
+            logger.emit("updating-elb.create-elb-listener", 
+                elb_name=self.elb_name)
             self.elb_client.create_load_balancer_listeners(
                 LoadBalancerName=self.elb_name,
                 Listeners=[{
@@ -141,7 +143,8 @@ class ELBCertificate(object):
                 }]
             )
         else:
-            logger.emit("updating-elb.set-elb-certificate", elb_name=self.elb_name)
+            logger.emit("updating-elb.set-elb-certificate", 
+                elb_name=self.elb_name)
             self.elb_client.set_load_balancer_listener_ssl_certificate(
                 LoadBalancerName=self.elb_name,
                 SSLCertificateId=new_cert_arn,
@@ -471,7 +474,7 @@ def setup_acme_client(s3_client, acme_directory_url, acme_account_key):
         raise ValueError(
             "Invalid acme account key: {!r}".format(acme_account_key)
         )
-    
+
     key = serialization.load_pem_private_key(
         key, password=None, backend=default_backend()
     )
@@ -528,7 +531,7 @@ def update_certificates(persistent=False, force_issue=False):
         if "elb" in domain:
             cert_location = ELBCertificate(
                 elb_client, iam_client,
-                domain["elb"]["name"], 
+                domain["elb"]["name"],
                 int(domain["elb"].get("port", 443)),
                 int(domain["elb"].get("instance_port", 80))
             )
