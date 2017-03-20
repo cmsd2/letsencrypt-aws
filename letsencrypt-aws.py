@@ -72,8 +72,8 @@ class CertificateRequest(object):
 
 
 class ELBCertificate(object):
-    def __init__(self, elb_client, iam_client, elb_name, elb_port, 
-            instance_port):
+    def __init__(self, elb_client, iam_client, elb_name, elb_port,
+                 instance_port):
         self.elb_client = elb_client
         self.iam_client = iam_client
         self.elb_name = elb_name
@@ -130,8 +130,8 @@ class ELBCertificate(object):
         time.sleep(15)
 
         if self.get_current_certificate() is None:
-            logger.emit("updating-elb.create-elb-listener", 
-                elb_name=self.elb_name)
+            logger.emit("updating-elb.create-elb-listener",
+                        elb_name=self.elb_name)
             self.elb_client.create_load_balancer_listeners(
                 LoadBalancerName=self.elb_name,
                 Listeners=[{
@@ -143,8 +143,8 @@ class ELBCertificate(object):
                 }]
             )
         else:
-            logger.emit("updating-elb.set-elb-certificate", 
-                elb_name=self.elb_name)
+            logger.emit("updating-elb.set-elb-certificate",
+                        elb_name=self.elb_name)
             self.elb_client.set_load_balancer_listener_ssl_certificate(
                 LoadBalancerName=self.elb_name,
                 SSLCertificateId=new_cert_arn,
