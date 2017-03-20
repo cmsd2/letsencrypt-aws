@@ -202,7 +202,7 @@ class Route53ChallengeCompleter(object):
     def create_txt_record(self, host, value):
         zone_id = self._find_zone_id_for_domain(host)
         change_id = self._change_txt_record(
-            "CREATE",
+            "UPSERT",
             zone_id,
             host,
             value,
