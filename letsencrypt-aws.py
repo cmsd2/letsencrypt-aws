@@ -152,6 +152,70 @@ class ELBCertificate(object):
             )
 
 
+class ALBCertificate(object):
+    def __init__(self, alb_client, iam_client, elb_name, alb_listener_arn):
+        self.alb_client = alb_client
+        self.iam_client = iam_client
+        self.elb_name = elb_name
+        self.alb_listener_arn = alb_listener_arn
+
+    def get_current_certificate(self):
+        response = self.alb_client.describe_listeners(
+            ListenerArns=[self.alb_listener_arn]
+        )
+        alb_listeners = response["Listeners"]
+
+        if len(alb_listeners) == 0:
+            return None
+
+        [alb_listener] = alb_listeners
+
+        if "CertificateArn" not in alb_listener:
+            return None
+
+        [certificate_arn] = alb_listener["CertificateArn"]
+
+        return _get_iam_certificate(
+            self.iam_client, certificate_arn
+        )
+
+    def update_certificate(self, logger, hosts, private_key, pem_certificate,
+                           pem_certificate_chain):
+        logger.emit(
+            "updating-elb.upload-iam-certificate", alb_listener_arn=self.alb_listener_arn
+        )
+
+        response = self.iam_client.upload_server_certificate(
+            ServerCertificateName=generate_certificate_name(
+                hosts,
+                x509.load_pem_x509_certificate(
+                    pem_certificate, default_backend()
+                )
+            ),
+            PrivateKey=private_key.private_bytes(
+                encoding=serialization.Encoding.PEM,
+                format=serialization.PrivateFormat.TraditionalOpenSSL,
+                encryption_algorithm=serialization.NoEncryption(),
+            ).decode('utf-8'),
+            CertificateBody=pem_certificate.decode('utf-8'),
+            CertificateChain=pem_certificate_chain.decode('utf-8'),
+        )
+        new_cert_arn = response["ServerCertificateMetadata"]["Arn"]
+
+        # Sleep before trying to set the certificate, it appears to sometimes
+        # fail without this.
+        time.sleep(15)
+
+        logger.emit("updating-elb.set-elb-certificate",
+                    alb_listener_arn=self.alb_listener_arn)
+        self.alb_client.modify_listener(
+            ListenerArn=self.alb_listener_arn,
+            Certificates=[{
+                'CertificateArn': new_cert_arn
+            }]
+        )
+
+
 class Route53ChallengeCompleter(object):
     def __init__(self, route53_client):
         self.route53_client = route53_client
@@ -513,6 +577,7 @@ def update_certificates(persistent=False, force_issue=False):
     session = boto3.Session()
     s3_client = session.client("s3", config=Config(signature_version='s3v4'))
     elb_client = session.client("elb")
+    alb_client = session.client("elbv2")
     route53_client = session.client("route53")
     iam_client = session.client("iam")
 
@@ -534,6 +599,12 @@ def update_certificates(persistent=False, force_issue=False):
                 domain["elb"]["name"],
                 int(domain["elb"].get("port", 443)),
                 int(domain["elb"].get("instance_port", 80))
+            )
+        elif "alb" in domain:
+            cert_location = ALBCertificate(
+                alb_client, iam_client,
+                domain["alb"]["name"],
+                domain["alb"]["listener_arn"]
             )
         else:
             raise ValueError(
