@@ -182,7 +182,8 @@ class ALBCertificate(object):
     def update_certificate(self, logger, hosts, private_key, pem_certificate,
                            pem_certificate_chain):
         logger.emit(
-            "updating-elb.upload-iam-certificate", alb_listener_arn=self.alb_listener_arn
+            "updating-elb.upload-iam-certificate",
+            alb_listener_arn=self.alb_listener_arn
         )
 
         response = self.iam_client.upload_server_certificate(
