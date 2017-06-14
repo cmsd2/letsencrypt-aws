@@ -10,7 +10,7 @@ addons:
   artifacts:
     s3_region: eu-west-1
     paths:
-      - letsencrypt-aws.zip
+      - dist/letsencrypt-aws.zip
     bucket: cmsd2-artifacts
     target_paths: letsencrypt-aws/$TRAVIS_BUILD_NUMBER
     debug: true
@@ -25,8 +25,7 @@ script:
 - flake8 letsencrypt-aws.py
 - mkdir dist
 - docker build -t letsencrypt .
-- docker run -v dist:/dist letsencrypt /app/package.sh
-- cp dist/letsencrypt-aws.zip .
+- docker run -v $PWD/dist:/dist letsencrypt /app/package.sh
 env:
   global:
   - ARTIFACTS_KEY: AKIAJLYCNA2OXC6GVDEA
