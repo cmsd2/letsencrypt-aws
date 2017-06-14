@@ -3,8 +3,9 @@ FROM amazonlinux
 # This can be bumped every time you need to force an apt refresh
 ENV LAST_UPDATE 6
 
-RUN apt-get update && apt-get upgrade -y
-RUN apt-get update && apt-get install -y build-essential libffi-dev libssl-dev git
+RUN yum -y upgrade
+RUN yum -y groupinstall "Development Tools" "Development Libraries"
+RUN yum -y install libffi-devel libssl-dev git
 
 WORKDIR /app/
 
