@@ -25,7 +25,7 @@ script:
 - flake8 letsencrypt-aws.py
 - mkdir dist
 - docker build -t letsencrypt .
-- docker run -v dist:/dist letsencrypt ./package.sh
+- docker run -v dist:/dist letsencrypt /app/package.sh
 - cp dist/letsencrypt-aws.zip .
 env:
   global:

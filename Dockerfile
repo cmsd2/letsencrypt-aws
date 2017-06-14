@@ -5,11 +5,11 @@ ENV LAST_UPDATE 6
 
 RUN yum -y upgrade
 RUN yum -y groupinstall "Development Tools" "Development Libraries"
-RUN yum -y install libffi-devel libssl-dev git
+RUN yum -y install libffi-devel libssl-dev git python27-pip
 
 WORKDIR /app/
 
-ENV VENV_DIR .venv
+ENV VENV_DIR /app/.venv
 ENV PYTHON_VERSION 2.7
 ENV ARTIFACT /dist/letsencrypt-aws.zip
 
