@@ -1,4 +1,4 @@
-FROM python:2.7-slim
+FROM amazonlinux
 
 # This can be bumped every time you need to force an apt refresh
 ENV LAST_UPDATE 6
@@ -14,8 +14,11 @@ COPY requirements.txt ./
 RUN .venv/bin/pip install -r requirements.txt
 COPY letsencrypt-aws.py ./
 RUN chmod 644 letsencrypt-aws.py
+COPY package.sh ./
+RUN chmod 755 package.sh
+VOLUME /dist
+ENV VENV_DIR .venv
+ENV PYTHON_VERSION 2.7
+ENV ARTIFACT /dist/letsencrypt-aws.zip
 
-USER nobody
-
-ENTRYPOINT [".venv/bin/python", "letsencrypt-aws.py"]
-CMD ["update-certificates"]
+CMD [".venv/bin/python", "letsencrypt-aws.py", "update-certificates"]

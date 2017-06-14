@@ -46,17 +46,16 @@ class Logger(object):
         self._out.flush()
 
 
-def _get_iam_certificate(iam_client, certificate_id):
-    paginator = iam_client.get_paginator("list_server_certificates")
+def _get_acm_certificate(acm_client, certificate_id):
+    paginator = acm_client.get_paginator("list_certificates")
     for page in paginator.paginate():
-        for server_certificate in page["ServerCertificateMetadataList"]:
-            if server_certificate["Arn"] == certificate_id:
-                cert_name = server_certificate["ServerCertificateName"]
-                response = iam_client.get_server_certificate(
-                    ServerCertificateName=cert_name,
+        for server_certificate in page["CertificateSummaryList"]:
+            if server_certificate["CertificateArn"] == certificate_id:
+                response = acm_client.get_certificate(
+                    CertificateArn=certificate_id
                 )
                 return x509.load_pem_x509_certificate(
-                    response["ServerCertificate"]["CertificateBody"].encode(),
+                    response["Certificate"].encode(),
                     default_backend(),
                 )
 
@@ -72,15 +71,15 @@ class CertificateRequest(object):
 
 
 class ELBCertificate(object):
-    def __init__(self, elb_client, iam_client, elb_name, elb_port,
+    def __init__(self, elb_client, acm_client, elb_name, elb_port,
                  instance_port):
         self.elb_client = elb_client
-        self.iam_client = iam_client
+        self.acm_client = acm_client
         self.elb_name = elb_name
         self.elb_port = elb_port
         self.instance_port = instance_port
 
-    def get_current_certificate(self):
+    def get_certificate_arn(self):
         response = self.elb_client.describe_load_balancers(
             LoadBalancerNames=[self.elb_name]
         )
@@ -98,8 +97,13 @@ class ELBCertificate(object):
         if "SSLCertificateId" not in elb_listener:
             return None
 
-        return _get_iam_certificate(
-            self.iam_client, elb_listener["SSLCertificateId"]
+        return elb_listener["SSLCertificateId"]
+    
+    def get_current_certificate(self):
+        certificate_arn = self.get_certificate_arn()
+
+        return _get_acm_certificate(
+            self.acm_client, certificate_arn
         )
 
     def update_certificate(self, logger, hosts, private_key, pem_certificate,
@@ -108,22 +112,16 @@ class ELBCertificate(object):
             "updating-elb.upload-iam-certificate", elb_name=self.elb_name
         )
 
-        response = self.iam_client.upload_server_certificate(
-            ServerCertificateName=generate_certificate_name(
-                hosts,
-                x509.load_pem_x509_certificate(
-                    pem_certificate, default_backend()
-                )
-            ),
+        response = self.acm_client.import_certificate(
             PrivateKey=private_key.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
                 encryption_algorithm=serialization.NoEncryption(),
             ).decode('utf-8'),
-            CertificateBody=pem_certificate.decode('utf-8'),
+            Certificate=pem_certificate.decode('utf-8'),
             CertificateChain=pem_certificate_chain.decode('utf-8'),
         )
-        new_cert_arn = response["ServerCertificateMetadata"]["Arn"]
+        new_cert_arn = response["CertificateArn"]
 
         # Sleep before trying to set the certificate, it appears to sometimes
         # fail without this.
@@ -153,13 +151,13 @@ class ELBCertificate(object):
 
 
 class ALBCertificate(object):
-    def __init__(self, alb_client, iam_client, elb_name, alb_listener_arn):
+    def __init__(self, alb_client, acm_client, elb_name, alb_listener_arn):
         self.alb_client = alb_client
-        self.iam_client = iam_client
+        self.acm_client = acm_client
         self.elb_name = elb_name
         self.alb_listener_arn = alb_listener_arn
 
-    def get_current_certificate(self):
+    def get_certificate_arn(self):
         response = self.alb_client.describe_listeners(
             ListenerArns=[self.alb_listener_arn]
         )
@@ -175,8 +173,13 @@ class ALBCertificate(object):
 
         [certificate_arn] = alb_listener["CertificateArn"]
 
-        return _get_iam_certificate(
-            self.iam_client, certificate_arn
+        return certificate_arn
+
+    def get_current_certificate(self):
+        certificate_arn = self.get_certificate_arn()
+
+        return _get_acm_certificate(
+            self.acm_client, certificate_arn
         )
 
     def update_certificate(self, logger, hosts, private_key, pem_certificate,
@@ -186,22 +189,19 @@ class ALBCertificate(object):
             alb_listener_arn=self.alb_listener_arn
         )
 
-        response = self.iam_client.upload_server_certificate(
-            ServerCertificateName=generate_certificate_name(
-                hosts,
-                x509.load_pem_x509_certificate(
-                    pem_certificate, default_backend()
-                )
-            ),
+        certificate_arn = self.get_certificate_arn()
+
+        response = self.acm_client.import_certificate(
+            CertificateArn=certificate_arn,
             PrivateKey=private_key.private_bytes(
                 encoding=serialization.Encoding.PEM,
                 format=serialization.PrivateFormat.TraditionalOpenSSL,
                 encryption_algorithm=serialization.NoEncryption(),
             ).decode('utf-8'),
-            CertificateBody=pem_certificate.decode('utf-8'),
+            Certificate=pem_certificate.decode('utf-8'),
             CertificateChain=pem_certificate_chain.decode('utf-8'),
         )
-        new_cert_arn = response["ServerCertificateMetadata"]["Arn"]
+        new_cert_arn = response["CertificateArn"]
 
         # Sleep before trying to set the certificate, it appears to sometimes
         # fail without this.
@@ -580,7 +580,7 @@ def update_certificates(persistent=False, force_issue=False):
     elb_client = session.client("elb")
     alb_client = session.client("elbv2")
     route53_client = session.client("route53")
-    iam_client = session.client("iam")
+    acm_client = session.client("acm")
 
     config = json.loads(os.environ["LETSENCRYPT_AWS_CONFIG"])
     domains = config["domains"]
@@ -596,14 +596,14 @@ def update_certificates(persistent=False, force_issue=False):
     for domain in domains:
         if "elb" in domain:
             cert_location = ELBCertificate(
-                elb_client, iam_client,
+                elb_client, acm_client,
                 domain["elb"]["name"],
                 int(domain["elb"].get("port", 443)),
                 int(domain["elb"].get("instance_port", 80))
             )
         elif "alb" in domain:
             cert_location = ALBCertificate(
-                alb_client, iam_client,
+                alb_client, acm_client,
                 domain["alb"]["name"],
                 domain["alb"]["listener_arn"]
             )

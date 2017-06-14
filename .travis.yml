@@ -1,14 +1,13 @@
 language: python
 python:
 - 2.7
-- 3.5
 addons:
   apt:
     packages: 
   artifacts:
     s3_region: eu-west-1
     paths:
-      - letsencrypt-aws-$TRAVIS_PYTHON_VERSION.zip
+      - letsencrypt-aws.zip
     bucket: cmsd2-artifacts
     target_paths: letsencrypt-aws/$TRAVIS_BUILD_NUMBER
     debug: true
@@ -21,9 +20,10 @@ install:
 - pip install -r requirements.txt
 script:
 - flake8 letsencrypt-aws.py
-- zip -r $TRAVIS_BUILD_DIR/letsencrypt-aws-$TRAVIS_PYTHON_VERSION.zip letsencrypt-aws.py requirements.txt
-- cd $HOME/virtualenv/python${TRAVIS_PYTHON_VERSION}*/lib/python${TRAVIS_PYTHON_VERSION}/site-packages && zip -r $TRAVIS_BUILD_DIR/letsencrypt-aws-$TRAVIS_PYTHON_VERSION.zip *
-- if [ -d $HOME/virtualenv/python${TRAVIS_PYTHON_VERSION}*/lib64 ]; then cd $HOME/virtualenv/python${TRAVIS_PYTHON_VERSION}*/lib64/python${TRAVIS_PYTHON_VERSION}/site-packages && zip -r $TRAVIS_BUILD_DIR/letsencrypt-aws-$TRAVIS_PYTHON_VERSION.zip * ; fi
+- mkdir dist
+- docker build -t letsencrypt .
+- docker run -v dist:/dist letsencrypt ./package.sh
+- cp dist/letsencrypt-aws.zip .
 env:
   global:
   - ARTIFACTS_KEY: AKIAJLYCNA2OXC6GVDEA
