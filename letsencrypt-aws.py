@@ -191,16 +191,27 @@ class ALBCertificate(object):
 
         certificate_arn = self.get_certificate_arn()
 
-        response = self.acm_client.import_certificate(
-            CertificateArn=certificate_arn,
-            PrivateKey=private_key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.TraditionalOpenSSL,
-                encryption_algorithm=serialization.NoEncryption(),
-            ).decode('utf-8'),
-            Certificate=pem_certificate.decode('utf-8'),
-            CertificateChain=pem_certificate_chain.decode('utf-8'),
-        )
+        if certificate_arn is None:
+            response = self.acm_client.import_certificate(
+                PrivateKey=private_key.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.TraditionalOpenSSL,
+                    encryption_algorithm=serialization.NoEncryption(),
+                ).decode('utf-8'),
+                Certificate=pem_certificate.decode('utf-8'),
+                CertificateChain=pem_certificate_chain.decode('utf-8'),
+            )
+        else:            
+            response = self.acm_client.import_certificate(
+                CertificateArn=certificate_arn,
+                PrivateKey=private_key.private_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PrivateFormat.TraditionalOpenSSL,
+                    encryption_algorithm=serialization.NoEncryption(),
+                ).decode('utf-8'),
+                Certificate=pem_certificate.decode('utf-8'),
+                CertificateChain=pem_certificate_chain.decode('utf-8'),
+            )
         new_cert_arn = response["CertificateArn"]
 
         # Sleep before trying to set the certificate, it appears to sometimes
