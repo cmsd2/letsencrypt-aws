@@ -201,7 +201,7 @@ class ALBCertificate(object):
                 Certificate=pem_certificate.decode('utf-8'),
                 CertificateChain=pem_certificate_chain.decode('utf-8'),
             )
-        else:            
+        else:
             response = self.acm_client.import_certificate(
                 CertificateArn=certificate_arn,
                 PrivateKey=private_key.private_bytes(
