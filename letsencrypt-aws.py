@@ -98,7 +98,7 @@ class ELBCertificate(object):
             return None
 
         return elb_listener["SSLCertificateId"]
-    
+
     def get_current_certificate(self):
         certificate_arn = self.get_certificate_arn()
 
